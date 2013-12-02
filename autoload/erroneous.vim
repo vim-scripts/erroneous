@@ -1,4 +1,4 @@
-"Version: 1.0.0
+"Version: 1.1.0
 
 if has('ruby')
 	ruby load File.join(VIM::evaluate("expand('<sfile>:p:h')"),'erroneous.rb')
@@ -29,14 +29,10 @@ function! erroneous#execGetErrors(command)
 		echo join(errFileContent,"\n")
 		echohl None
 
-		"We can't tell the exit status without ruby, so since there was error
-		"output we just use 1.
-		return [1,l:outFileContent,l:errFileContent]
+		return [v:shell_error,l:outFileContent,l:errFileContent]
 	endif
 
-	"We can't tell the exit status without ruby, so since there was no error
-	"output we just use 0.
-	return [0,l:outFileContent,l:errFileContent]
+	return [v:shell_error,l:outFileContent,l:errFileContent]
 endfunction
 
 "set the specified error list(1=quickfix,2=locations) to the specified errors
@@ -90,8 +86,7 @@ endfunction
 "Assumed the supplied command was ran and given the supplied errors, and
 "parses them normally.
 " * command: the command that was ran.
-" * exitCode the exit code returned by the command(or guessed, if Ruby was not
-"	used for running the command)
+" * exitCode the exit code returned by the command.
 " * output the standard output that were returned.
 " * errors: the errors that were returned.
 " * targetList: 1 for the quickfix list, 2 for the locations list.
@@ -281,6 +276,19 @@ function! erroneous#parseMavenErrorOutput(command,exitCode,output,errors,targetL
 	endif
 	call erroneous#setErrorList(a:targetList,a:jump,filter(a:output,'v:val=~''^\(\(\[ERROR\]\)\|\t\)'''),l:errorformat)
 	return a:exitCode
+endfunction
+
+"Parse errors for XBuild. To be placed inside the erroneous dictionaries.
+" * command: The command
+" * exitCode the exit code returned by the command
+" * output: The standard output
+" * errors: The error output
+" * targetList: The target list
+" * jump: The 'jump' choice
+function! erroneous#parseXBuildErrorOutput(command,exitCode,output,errors,targetList,jump)
+	if a:exitCode
+		call erroneous#setErrorList(a:targetList,a:jump,filter(a:output,'v:val=~"^\\(\\s\\@!\\).*(\\d\\+,\\d\\+)"'),'%f(%l\,%c): %m')
+	endif
 endfunction
 
 "Service function to run a sleep command.
